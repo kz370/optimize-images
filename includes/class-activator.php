@@ -27,8 +27,8 @@ class Activator {
 		if ( version_compare( PHP_VERSION, '8.1.0', '<' ) ) {
 			deactivate_plugins( FFMPEG_MEDIA_OPTIMIZER_BASENAME );
 			wp_die(
-				esc_html__( 'FFmpeg Media Optimizer requires PHP version 8.1.0 or higher. Activation aborted.', 'ffmpeg-media-optimizer' ),
-				esc_html__( 'Activation Error', 'ffmpeg-media-optimizer' ),
+				esc_html__( 'FFmpeg Media Optimizer requires PHP version 8.1.0 or higher. Activation aborted.', 'optimize-images' ),
+				esc_html__( 'Activation Error', 'optimize-images' ),
 				array( 'back_link' => true )
 			);
 		}
@@ -38,8 +38,8 @@ class Activator {
 		if ( version_compare( $wp_version, '6.5', '<' ) ) {
 			deactivate_plugins( FFMPEG_MEDIA_OPTIMIZER_BASENAME );
 			wp_die(
-				esc_html__( 'FFmpeg Media Optimizer requires WordPress version 6.5 or higher. Activation aborted.', 'ffmpeg-media-optimizer' ),
-				esc_html__( 'Activation Error', 'ffmpeg-media-optimizer' ),
+				esc_html__( 'FFmpeg Media Optimizer requires WordPress version 6.5 or higher. Activation aborted.', 'optimize-images' ),
+				esc_html__( 'Activation Error', 'optimize-images' ),
 				array( 'back_link' => true )
 			);
 		}
@@ -48,8 +48,8 @@ class Activator {
 		if ( ! function_exists( 'proc_open' ) ) {
 			deactivate_plugins( FFMPEG_MEDIA_OPTIMIZER_BASENAME );
 			wp_die(
-				esc_html__( 'FFmpeg Media Optimizer requires the PHP function "proc_open" to run shell binaries locally. Please enable it in your php.ini or contact your host.', 'ffmpeg-media-optimizer' ),
-				esc_html__( 'Activation Error', 'ffmpeg-media-optimizer' ),
+				esc_html__( 'FFmpeg Media Optimizer requires the PHP function "proc_open" to run shell binaries locally. Please enable it in your php.ini or contact your host.', 'optimize-images' ),
+				esc_html__( 'Activation Error', 'optimize-images' ),
 				array( 'back_link' => true )
 			);
 		}
@@ -60,9 +60,9 @@ class Activator {
 			deactivate_plugins( FFMPEG_MEDIA_OPTIMIZER_BASENAME );
 			wp_die(
 				wp_kses_post(
-					__( '<strong>FFmpeg Media Optimizer:</strong> FFmpeg was not found on your server. Please install FFmpeg or ensure it is accessible in your system path, then try activating again.', 'ffmpeg-media-optimizer' )
+					__( '<strong>FFmpeg Media Optimizer:</strong> FFmpeg was not found on your server. Please install FFmpeg or ensure it is accessible in your system path, then try activating again.', 'optimize-images' )
 				),
-				esc_html__( 'FFmpeg Not Found', 'ffmpeg-media-optimizer' ),
+				esc_html__( 'FFmpeg Not Found', 'optimize-images' ),
 				array( 'back_link' => true )
 			);
 		}
@@ -133,6 +133,7 @@ class Activator {
 		// Sanitize commands
 		$cmd = escapeshellcmd( $path ) . ' -version';
 
+		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found
 		$process = @proc_open( $cmd, $descriptors, $pipes );
 
 		if ( ! is_resource( $process ) ) {
@@ -142,8 +143,11 @@ class Activator {
 		$stdout = stream_get_contents( $pipes[1] );
 		$stderr = stream_get_contents( $pipes[2] );
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		fclose( $pipes[0] );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		fclose( $pipes[1] );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		fclose( $pipes[2] );
 
 		$return_value = proc_close( $process );
@@ -187,7 +191,6 @@ class Activator {
 			'enable_cli'               => 1,
 			'enable_logging'           => 1,
 			'debug_mode'               => 0,
-			'conversion_target'        => 'original', // 'original', 'webp', 'avif', 'best'
 		);
 
 		$existing = get_option( 'ffmpeg_media_optimizer_settings' );

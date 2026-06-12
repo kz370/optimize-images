@@ -70,7 +70,7 @@ class Plugin {
 	 */
 	public function load_textdomain() {
 		load_plugin_textdomain(
-			'ffmpeg-media-optimizer',
+			'optimize-images',
 			false,
 			dirname( FFMPEG_MEDIA_OPTIMIZER_BASENAME ) . '/languages/'
 		);

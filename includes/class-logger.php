@@ -48,7 +48,7 @@ class Logger {
 	 */
 	public static function get_log_dir() {
 		$upload_dir = wp_upload_dir();
-		return $upload_dir['basedir'] . '/ffmpeg-media-optimizer-logs';
+		return $upload_dir['basedir'] . '/optimize-images-logs';
 	}
 
 	/**
@@ -105,7 +105,7 @@ class Logger {
 	public static function read_logs( $lines = 100 ) {
 		$log_file = self::get_log_file();
 		if ( ! file_exists( $log_file ) ) {
-			return esc_html__( 'No logs recorded yet.', 'ffmpeg-media-optimizer' );
+			return esc_html__( 'No logs recorded yet.', 'optimize-images' );
 		}
 
 		$content = file_get_contents( $log_file );
@@ -131,7 +131,7 @@ class Logger {
 	public static function clear_logs() {
 		$log_file = self::get_log_file();
 		if ( file_exists( $log_file ) ) {
-			unlink( $log_file );
+			wp_delete_file( $log_file );
 		}
 		self::init();
 	}

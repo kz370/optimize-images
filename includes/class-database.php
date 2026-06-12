@@ -119,6 +119,7 @@ class Database {
 
 		if ( $existing ) {
 			$data['updated_at'] = $now;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$result = $wpdb->update(
 				$table,
 				$data,
@@ -128,6 +129,7 @@ class Database {
 		} else {
 			$data['created_at'] = $now;
 			$data['updated_at'] = $now;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$result = $wpdb->insert( $table, $data );
 			return $result ? $wpdb->insert_id : false;
 		}
@@ -142,8 +144,10 @@ class Database {
 	public static function get_image_by_attachment( $attachment_id ) {
 		global $wpdb;
 		$table = self::get_images_table();
-		$query = $wpdb->prepare( "SELECT * FROM {$table} WHERE attachment_id = %d LIMIT 1", $attachment_id ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_row( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM %i WHERE attachment_id = %d LIMIT 1", $table, $attachment_id )
+		);
 	}
 
 	/**
@@ -160,10 +164,15 @@ class Database {
 
 		$table = self::get_images_table();
 		$ids   = array_map( 'intval', $attachment_ids );
-		$in    = implode( ',', $ids );
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 
-		$query = "SELECT * FROM {$table} WHERE attachment_id IN ({$in})";
-		$rows  = $wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE attachment_id IN ($placeholders)",
+				array_merge( array( $table ), $ids )
+			)
+		);
 
 		$map = array();
 		if ( ! empty( $rows ) ) {
@@ -188,6 +197,7 @@ class Database {
 		$data['started_at']  = ! empty( $data['started_at'] ) ? $data['started_at'] : current_time( 'mysql', 1 );
 		$data['finished_at'] = ! empty( $data['finished_at'] ) ? $data['finished_at'] : current_time( 'mysql', 1 );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->insert( $table, $data );
 		return $result ? $wpdb->insert_id : false;
 	}
@@ -201,8 +211,10 @@ class Database {
 	public static function get_runs( $attachment_id ) {
 		global $wpdb;
 		$table = self::get_runs_table();
-		$query = $wpdb->prepare( "SELECT * FROM {$table} WHERE attachment_id = %d ORDER BY id ASC", $attachment_id ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_results(
+			$wpdb->prepare( "SELECT * FROM %i WHERE attachment_id = %d ORDER BY id ASC", $table, $attachment_id )
+		);
 	}
 
 	/**
@@ -217,6 +229,7 @@ class Database {
 
 		switch ( $scope ) {
 			case 'products':
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$ids = $wpdb->get_col(
 					"SELECT DISTINCT meta_value FROM {$wpdb->postmeta} pm
 					JOIN {$wpdb->posts} p ON pm.post_id = p.ID
@@ -227,6 +240,7 @@ class Database {
 				break;
 
 			case 'galleries':
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$galleries = $wpdb->get_col(
 					"SELECT DISTINCT meta_value FROM {$wpdb->postmeta} pm
 					JOIN {$wpdb->posts} p ON pm.post_id = p.ID
@@ -249,6 +263,7 @@ class Database {
 				break;
 
 			case 'categories':
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$ids = $wpdb->get_col(
 					"SELECT DISTINCT meta_value FROM {$wpdb->termmeta}
 					WHERE meta_key = 'thumbnail_id'
@@ -311,15 +326,20 @@ class Database {
 		}
 
 		// Total attachments compatible
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$total = $wpdb->get_var( "SELECT COUNT(p.ID) FROM {$wpdb->posts} p WHERE {$posts_where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// DB counts
-		$pending = $wpdb->get_var( "SELECT COUNT(id) FROM {$table_images} WHERE status = 'pending' AND {$images_where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$optimized = $wpdb->get_var( "SELECT COUNT(id) FROM {$table_images} WHERE status = 'optimized' AND {$images_where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$failed = $wpdb->get_var( "SELECT COUNT(id) FROM {$table_images} WHERE status = 'failed' AND {$images_where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$pending = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(id) FROM %i WHERE status = 'pending' AND {$images_where}", $table_images ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$optimized = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(id) FROM %i WHERE status = 'optimized' AND {$images_where}", $table_images ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$failed = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(id) FROM %i WHERE status = 'failed' AND {$images_where}", $table_images ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// Sizes
-		$savings = $wpdb->get_row( "SELECT SUM(original_size) as orig, SUM(current_size) as curr FROM {$table_images} WHERE status = 'optimized' AND {$images_where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$savings = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(original_size) as orig, SUM(current_size) as curr FROM %i WHERE status = 'optimized' AND {$images_where}", $table_images ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		$original_size = $savings ? (int) $savings->orig : 0;
 		$current_size  = $savings ? (int) $savings->curr : 0;
@@ -328,7 +348,8 @@ class Database {
 		// Duplicate stats
 		$dup_where = $images_where . " AND optimizer_used = 'duplicate-reuse'";
 		$table_runs = self::get_runs_table();
-		$dup_stats = $wpdb->get_row( "SELECT COUNT(id) as cnt, SUM(saved_bytes) as bytes FROM {$table_runs} WHERE status = 'success' AND {$dup_where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$dup_stats = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(id) as cnt, SUM(saved_bytes) as bytes FROM %i WHERE status = 'success' AND {$dup_where}", $table_runs ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		$duplicate_count = $dup_stats ? (int) $dup_stats->cnt : 0;
 		$duplicate_saved = $dup_stats ? (int) $dup_stats->bytes : 0;
@@ -373,21 +394,25 @@ class Database {
 		}
 
 		if ( $is_wc_scope ) {
-			$in    = implode( ',', $wc_ids );
-			$query = $wpdb->prepare(
-				"SELECT attachment_id FROM {$table} WHERE status = %s AND attachment_id IN ({$in}) ORDER BY id ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				'pending',
-				$limit
+			$placeholders = implode( ',', array_fill( 0, count( $wc_ids ), '%d' ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			return $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT attachment_id FROM %i WHERE status = %s AND attachment_id IN ($placeholders) ORDER BY id ASC LIMIT %d",
+					array_merge( array( $table, 'pending' ), array_map( 'intval', $wc_ids ), array( $limit ) )
+				)
 			);
 		} else {
-			$query = $wpdb->prepare(
-				"SELECT attachment_id FROM {$table} WHERE status = %s ORDER BY id ASC LIMIT %d",
-				'pending',
-				$limit
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			return $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT attachment_id FROM %i WHERE status = %s ORDER BY id ASC LIMIT %d",
+					$table,
+					'pending',
+					$limit
+				)
 			);
 		}
-
-		return $wpdb->get_col( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/**
@@ -396,17 +421,19 @@ class Database {
 	public static function get_daily_savings( $days = 30 ) {
 		global $wpdb;
 		$table = self::get_runs_table();
-		$query = $wpdb->prepare(
-			"SELECT DATE(finished_at) as date_day, SUM(saved_bytes) as bytes
-			FROM {$table}
-			WHERE status = 'success'
-			AND finished_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
-			GROUP BY DATE(finished_at)
-			ORDER BY DATE(finished_at) ASC",
-			$days
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DATE(finished_at) as date_day, SUM(saved_bytes) as bytes
+				FROM %i
+				WHERE status = 'success'
+				AND finished_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+				GROUP BY DATE(finished_at)
+				ORDER BY DATE(finished_at) ASC",
+				$table,
+				$days
+			)
 		);
-
-		return $wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/**
@@ -415,17 +442,19 @@ class Database {
 	public static function get_monthly_savings( $months = 12 ) {
 		global $wpdb;
 		$table = self::get_runs_table();
-		$query = $wpdb->prepare(
-			"SELECT DATE_FORMAT(finished_at, '%Y-%m') as date_month, SUM(saved_bytes) as bytes
-			FROM {$table}
-			WHERE status = 'success'
-			AND finished_at >= DATE_SUB(NOW(), INTERVAL %d MONTH)
-			GROUP BY DATE_FORMAT(finished_at, '%Y-%m')
-			ORDER BY DATE_FORMAT(finished_at, '%Y-%m') ASC",
-			$months
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DATE_FORMAT(finished_at, '%%Y-%%m') as date_month, SUM(saved_bytes) as bytes
+				FROM %i
+				WHERE status = 'success'
+				AND finished_at >= DATE_SUB(NOW(), INTERVAL %d MONTH)
+				GROUP BY DATE_FORMAT(finished_at, '%%Y-%%m')
+				ORDER BY DATE_FORMAT(finished_at, '%%Y-%%m') ASC",
+				$table,
+				$months
+			)
 		);
-
-		return $wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/**
@@ -434,7 +463,8 @@ class Database {
 	public static function reset_all_to_pending() {
 		global $wpdb;
 		$table = self::get_images_table();
-		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = %s", 'pending' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status = %s", $table, 'pending' ) );
 	}
 
 	/**
@@ -446,7 +476,9 @@ class Database {
 	public static function get_image_by_path( $file_path ) {
 		global $wpdb;
 		$table = self::get_images_table();
-		$query = $wpdb->prepare( "SELECT * FROM {$table} WHERE file_path = %s LIMIT 1", $file_path ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_row( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM %i WHERE file_path = %s LIMIT 1", $table, $file_path )
+		);
 	}
 }

@@ -39,7 +39,7 @@ class Cli {
 	 * @param array $assoc_args Command line associative arguments.
 	 */
 	public function scan( $args, $assoc_args ) {
-		\WP_CLI::log( __( 'Scanning Media Library...', 'ffmpeg-media-optimizer' ) );
+		\WP_CLI::log( __( 'Scanning Media Library...', 'optimize-images' ) );
 
 		$scanner = new Scanner();
 		$offset  = 0;
@@ -47,16 +47,20 @@ class Cli {
 		$total   = 0;
 
 		while ( true ) {
-			$scanned = $scanner->scan_batch( $offset, $limit );
-			if ( 0 === $scanned ) {
+			$res = $scanner->scan_batch( $offset, $limit );
+			$scanned = is_array( $res ) ? $res['scanned'] : $res;
+			$queried = is_array( $res ) ? $res['queried'] : $res;
+			if ( 0 === $queried ) {
 				break;
 			}
 			$total  += $scanned;
 			$offset += $limit;
-			\WP_CLI::log( sprintf( __( 'Scanned %d attachments...', 'ffmpeg-media-optimizer' ), $offset ) );
+			/* translators: %d: offset count */
+			\WP_CLI::log( sprintf( __( 'Scanned %d attachments...', 'optimize-images' ), $offset ) );
 		}
 
-		\WP_CLI::success( sprintf( __( 'Scan completed! Found %d new/updated image attachments.', 'ffmpeg-media-optimizer' ), $total ) );
+		/* translators: %d: number of attachments scanned */
+		\WP_CLI::success( sprintf( __( 'Scan completed! Found %d new/updated image attachments.', 'optimize-images' ), $total ) );
 	}
 
 	/**
@@ -91,11 +95,12 @@ class Cli {
 		// Case 1: Specific IDs
 		if ( isset( $assoc_args['ids'] ) ) {
 			$ids = array_map( 'intval', explode( ',', $assoc_args['ids'] ) );
-			\WP_CLI::log( sprintf( __( 'Optimizing %d targeted attachments...', 'ffmpeg-media-optimizer' ), count( $ids ) ) );
+			/* translators: %d: number of targeted attachments */
+			\WP_CLI::log( sprintf( __( 'Optimizing %d targeted attachments...', 'optimize-images' ), count( $ids ) ) );
 			
 			$success = 0;
 			$failed  = 0;
-			$progress = \WP_CLI\Utils\make_progress_bar( __( 'Processing', 'ffmpeg-media-optimizer' ), count( $ids ) );
+			$progress = \WP_CLI\Utils\make_progress_bar( __( 'Processing', 'optimize-images' ), count( $ids ) );
 
 			foreach ( $ids as $id ) {
 				$scanner = new Scanner();
@@ -110,16 +115,17 @@ class Cli {
 				$progress->tick();
 			}
 			$progress->finish();
-			\WP_CLI::success( sprintf( __( 'Completed! Success: %1$d, Failed: %2$d', 'ffmpeg-media-optimizer' ), $success, $failed ) );
+			/* translators: 1: success count, 2: failed count */
+			\WP_CLI::success( sprintf( __( 'Completed! Success: %1$d, Failed: %2$d', 'optimize-images' ), $success, $failed ) );
 			return;
 		}
 
 		// Case 2: Resume queue
 		if ( isset( $assoc_args['resume'] ) ) {
-			\WP_CLI::log( __( 'Resuming queue from checkpoint...', 'ffmpeg-media-optimizer' ) );
+			\WP_CLI::log( __( 'Resuming queue from checkpoint...', 'optimize-images' ) );
 			$processor = new Background_Processor();
 			$processor->resume();
-			\WP_CLI::success( __( 'Queue resumed in background.', 'ffmpeg-media-optimizer' ) );
+			\WP_CLI::success( __( 'Queue resumed in background.', 'optimize-images' ) );
 			return;
 		}
 
@@ -130,17 +136,18 @@ class Cli {
 		}
 
 		$limit = isset( $assoc_args['batch-size'] ) ? (int) $assoc_args['batch-size'] : 50;
-		\WP_CLI::log( sprintf( __( 'Fetching pending images (scope: %1$s, limit: %2$d)...', 'ffmpeg-media-optimizer' ), $scope, $limit ) );
+		/* translators: 1: scope name, 2: limit count */
+		\WP_CLI::log( sprintf( __( 'Fetching pending images (scope: %1$s, limit: %2$d)...', 'optimize-images' ), $scope, $limit ) );
 
 		$pending = Database::get_pending_ids( $limit, $scope );
 		if ( empty( $pending ) ) {
-			\WP_CLI::success( __( 'No pending images in this scope.', 'ffmpeg-media-optimizer' ) );
+			\WP_CLI::success( __( 'No pending images in this scope.', 'optimize-images' ) );
 			return;
 		}
 
 		$success = 0;
 		$failed  = 0;
-		$progress = \WP_CLI\Utils\make_progress_bar( __( 'Optimizing', 'ffmpeg-media-optimizer' ), count( $pending ) );
+		$progress = \WP_CLI\Utils\make_progress_bar( __( 'Optimizing', 'optimize-images' ), count( $pending ) );
 
 		foreach ( $pending as $id ) {
 			$res = $optimizer->optimize_attachment( $id );
@@ -153,7 +160,8 @@ class Cli {
 		}
 		$progress->finish();
 
-		\WP_CLI::success( sprintf( __( 'Batch completed! Success: %1$d, Failed: %2$d', 'ffmpeg-media-optimizer' ), $success, $failed ) );
+		/* translators: 1: success count, 2: failed count */
+		\WP_CLI::success( sprintf( __( 'Batch completed! Success: %1$d, Failed: %2$d', 'optimize-images' ), $success, $failed ) );
 	}
 
 	/**
@@ -170,20 +178,26 @@ class Cli {
 		$stats = Database::get_dashboard_stats( 'all' );
 
 		\WP_CLI::line( '------------------------------------------' );
-		\WP_CLI::line( __( ' FFmpeg Media Optimizer Status', 'ffmpeg-media-optimizer' ) );
+		\WP_CLI::line( __( ' FFmpeg Media Optimizer Status', 'optimize-images' ) );
 		\WP_CLI::line( '------------------------------------------' );
-		\WP_CLI::line( sprintf( __( ' Total Library Images: %d', 'ffmpeg-media-optimizer' ), $stats['total'] ) );
-		\WP_CLI::line( sprintf( __( ' Optimized Images:     %d', 'ffmpeg-media-optimizer' ), $stats['optimized'] ) );
-		\WP_CLI::line( sprintf( __( ' Pending Optimization: %d', 'ffmpeg-media-optimizer' ), $stats['pending'] ) );
-		\WP_CLI::line( sprintf( __( ' Failed Optimization:  %d', 'ffmpeg-media-optimizer' ), $stats['failed'] ) );
-		\WP_CLI::line( sprintf( __( ' Total Space Saved:    %s', 'ffmpeg-media-optimizer' ), size_format( $stats['bytes_saved'] ) ) );
-		\WP_CLI::line( sprintf( __( ' Duplicate Savings:    %s', 'ffmpeg-media-optimizer' ), size_format( $stats['duplicate_saved'] ) ) );
+		/* translators: %d: total library images */
+		\WP_CLI::line( sprintf( __( ' Total Library Images: %d', 'optimize-images' ), $stats['total'] ) );
+		/* translators: %d: optimized images count */
+		\WP_CLI::line( sprintf( __( ' Optimized Images:     %d', 'optimize-images' ), $stats['optimized'] ) );
+		/* translators: %d: pending optimization count */
+		\WP_CLI::line( sprintf( __( ' Pending Optimization: %d', 'optimize-images' ), $stats['pending'] ) );
+		/* translators: %d: failed optimization count */
+		\WP_CLI::line( sprintf( __( ' Failed Optimization:  %d', 'optimize-images' ), $stats['failed'] ) );
+		/* translators: %s: total space saved (formatted) */
+		\WP_CLI::line( sprintf( __( ' Total Space Saved:    %s', 'optimize-images' ), size_format( $stats['bytes_saved'] ) ) );
+		/* translators: %s: duplicate savings (formatted) */
+		\WP_CLI::line( sprintf( __( ' Duplicate Savings:    %s', 'optimize-images' ), size_format( $stats['duplicate_saved'] ) ) );
 		\WP_CLI::line( '------------------------------------------' );
 
 		// Check health issues.
 		$issues = Health_Check::check_health();
 		if ( ! empty( $issues ) ) {
-			\WP_CLI::line( __( ' Health warnings detected:', 'ffmpeg-media-optimizer' ) );
+			\WP_CLI::line( __( ' Health warnings detected:', 'optimize-images' ) );
 			foreach ( $issues as $issue ) {
 				$label = strtoupper( $issue['status'] );
 				if ( 'CRITICAL' === $label ) {
@@ -209,12 +223,16 @@ class Cli {
 	public function queue( $args, $assoc_args ) {
 		$state = Background_Processor::get_queue_state();
 		\WP_CLI::line( '------------------------------------------' );
-		\WP_CLI::line( __( ' Background Queue Status', 'ffmpeg-media-optimizer' ) );
+		\WP_CLI::line( __( ' Background Queue Status', 'optimize-images' ) );
 		\WP_CLI::line( '------------------------------------------' );
-		\WP_CLI::line( sprintf( __( ' Queue State:      %s', 'ffmpeg-media-optimizer' ), strtoupper( $state['status'] ) ) );
-		\WP_CLI::line( sprintf( __( ' Active Scope:     %s', 'ffmpeg-media-optimizer' ), strtoupper( $state['scope'] ) ) );
-		\WP_CLI::line( sprintf( __( ' Progress Metrics: %1$d/%2$d processed', 'ffmpeg-media-optimizer' ), $state['processed_count'], $state['total_jobs'] ) );
-		\WP_CLI::line( sprintf( __( ' Stalled/Crashed:  %s', 'ffmpeg-media-optimizer' ), $state['interrupted'] ? 'YES' : 'NO' ) );
+		/* translators: %s: queue state status */
+		\WP_CLI::line( sprintf( __( ' Queue State:      %s', 'optimize-images' ), strtoupper( $state['status'] ) ) );
+		/* translators: %s: active scope name */
+		\WP_CLI::line( sprintf( __( ' Active Scope:     %s', 'optimize-images' ), strtoupper( $state['scope'] ) ) );
+		/* translators: 1: processed jobs count, 2: total jobs count */
+		\WP_CLI::line( sprintf( __( ' Progress Metrics: %1$d/%2$d processed', 'optimize-images' ), $state['processed_count'], $state['total_jobs'] ) );
+		/* translators: %s: queue stalled status (YES/NO) */
+		\WP_CLI::line( sprintf( __( ' Stalled/Crashed:  %s', 'optimize-images' ), $state['interrupted'] ? 'YES' : 'NO' ) );
 		\WP_CLI::line( '------------------------------------------' );
 	}
 
@@ -253,14 +271,16 @@ class Cli {
 					$failed++;
 				}
 			}
-			\WP_CLI::success( sprintf( __( 'Restore complete! Success: %1$d, Failed: %2$d', 'ffmpeg-media-optimizer' ), $success, $failed ) );
+			/* translators: 1: success count, 2: failed count */
+			\WP_CLI::success( sprintf( __( 'Restore complete! Success: %1$d, Failed: %2$d', 'optimize-images' ), $success, $failed ) );
 		} elseif ( isset( $assoc_args['all'] ) ) {
-			\WP_CLI::log( __( 'Restoring all optimized images from backups...', 'ffmpeg-media-optimizer' ) );
+			\WP_CLI::log( __( 'Restoring all optimized images from backups...', 'optimize-images' ) );
 			$count = $restorer->restore_all();
 			Database::reset_all_to_pending();
-			\WP_CLI::success( sprintf( __( 'Restore complete! Restored %d attachments.', 'ffmpeg-media-optimizer' ), $count ) );
+			/* translators: %d: number of attachments restored */
+			\WP_CLI::success( sprintf( __( 'Restore complete! Restored %d attachments.', 'optimize-images' ), $count ) );
 		} else {
-			\WP_CLI::error( __( 'Please specify either --all or --ids=<attachment_ids>.', 'ffmpeg-media-optimizer' ) );
+			\WP_CLI::error( __( 'Please specify either --all or --ids=<attachment_ids>.', 'optimize-images' ) );
 		}
 	}
 
@@ -277,9 +297,11 @@ class Cli {
 	public function clear_failed( $args, $assoc_args ) {
 		global $wpdb;
 		$table = Database::get_images_table();
-		$count = $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = %s WHERE status = %s", 'pending', 'failed' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$count = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status = %s WHERE status = %s", $table, 'pending', 'failed' ) );
 
-		\WP_CLI::success( sprintf( __( 'Cleared %d failed entries back to pending.', 'ffmpeg-media-optimizer' ), $count ) );
+		/* translators: %d: number of cleared entries */
+		\WP_CLI::success( sprintf( __( 'Cleared %d failed entries back to pending.', 'optimize-images' ), $count ) );
 	}
 
 	/**
@@ -341,14 +363,18 @@ class Cli {
 			1 => array( 'pipe', 'w' ),
 			2 => array( 'pipe', 'w' ),
 		);
+		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found
 		$process = @proc_open( $cmd, $descriptors, $pipes );
 		if ( ! is_resource( $process ) ) {
 			return array( 'code' => -2, 'stdout' => '', 'stderr' => 'proc_open failed' );
 		}
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		fclose( $pipes[0] );
 		$stdout = stream_get_contents( $pipes[1] );
 		$stderr = stream_get_contents( $pipes[2] );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		fclose( $pipes[1] );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		fclose( $pipes[2] );
 		$code = proc_close( $process );
 		return array( 'code' => $code, 'stdout' => $stdout, 'stderr' => $stderr );
@@ -370,24 +396,33 @@ class Cli {
 		$runs  = Database::get_runs_table();
 
 		// Grouped optimizer usages
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$usages = $wpdb->get_results(
-			"SELECT optimizer_used, COUNT(id) as count, SUM(saved_bytes) as savings
-			FROM {$runs}
-			WHERE status = 'success'
-			GROUP BY optimizer_used
-			ORDER BY count DESC"
+			$wpdb->prepare(
+				"SELECT optimizer_used, COUNT(id) as count, SUM(saved_bytes) as savings
+				FROM %i
+				WHERE status = 'success'
+				GROUP BY optimizer_used
+				ORDER BY count DESC",
+				$runs
+			)
 		);
 
 		\WP_CLI::line( '==========================================' );
-		\WP_CLI::line( __( '         AGENCY PERFORMANCE REPORT', 'ffmpeg-media-optimizer' ) );
+		\WP_CLI::line( __( '         AGENCY PERFORMANCE REPORT', 'optimize-images' ) );
 		\WP_CLI::line( '==========================================' );
-		\WP_CLI::line( sprintf( __( ' Images Optimized:   %d', 'ffmpeg-media-optimizer' ), $stats['optimized'] ) );
-		\WP_CLI::line( sprintf( __( ' Failed Attempts:    %d', 'ffmpeg-media-optimizer' ), $stats['failed'] ) );
-		\WP_CLI::line( sprintf( __( ' Reclaimed Space:    %s', 'ffmpeg-media-optimizer' ), size_format( $stats['bytes_saved'] ) ) );
-		\WP_CLI::line( sprintf( __( ' Duplicate Savings:  %s', 'ffmpeg-media-optimizer' ), size_format( $stats['duplicate_saved'] ) ) );
-		\WP_CLI::line( sprintf( __( ' Average Reduction:  %s%%', 'ffmpeg-media-optimizer' ), $stats['average_savings'] ) );
+		/* translators: %d: optimized images count */
+		\WP_CLI::line( sprintf( __( ' Images Optimized:   %d', 'optimize-images' ), $stats['optimized'] ) );
+		/* translators: %d: failed attempts count */
+		\WP_CLI::line( sprintf( __( ' Failed Attempts:    %d', 'optimize-images' ), $stats['failed'] ) );
+		/* translators: %s: reclaimed space (formatted) */
+		\WP_CLI::line( sprintf( __( ' Reclaimed Space:    %s', 'optimize-images' ), size_format( $stats['bytes_saved'] ) ) );
+		/* translators: %s: duplicate savings (formatted) */
+		\WP_CLI::line( sprintf( __( ' Duplicate Savings:  %s', 'optimize-images' ), size_format( $stats['duplicate_saved'] ) ) );
+		/* translators: %s: average reduction percentage */
+		\WP_CLI::line( sprintf( __( ' Average Reduction:  %s%%', 'optimize-images' ), $stats['average_savings'] ) );
 		\WP_CLI::line( '------------------------------------------' );
-		\WP_CLI::line( __( ' OPTIMIZER BINARY USAGES:', 'ffmpeg-media-optimizer' ) );
+		\WP_CLI::line( __( ' OPTIMIZER BINARY USAGES:', 'optimize-images' ) );
 		\WP_CLI::line( '------------------------------------------' );
 
 		if ( ! empty( $usages ) ) {
@@ -395,7 +430,7 @@ class Cli {
 				\WP_CLI::line(
 					sprintf(
 						/* translators: 1: binary name, 2: conversion runs, 3: space saved */
-						__( ' - %1$s: %2$d runs | Reclaimed: %3$s', 'ffmpeg-media-optimizer' ),
+						__( ' - %1$s: %2$d runs | Reclaimed: %3$s', 'optimize-images' ),
 						strtoupper( $use->optimizer_used ),
 						$use->count,
 						size_format( $use->savings )
@@ -403,7 +438,7 @@ class Cli {
 				);
 			}
 		} else {
-			\WP_CLI::line( __( ' No engine optimizations recorded yet.', 'ffmpeg-media-optimizer' ) );
+			\WP_CLI::line( __( ' No engine optimizations recorded yet.', 'optimize-images' ) );
 		}
 		\WP_CLI::line( '==========================================' );
 	}

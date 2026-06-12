@@ -41,32 +41,13 @@ class Public_Handler {
 	 * @return string Modified rules.
 	 */
 	public function add_htaccess_rules( $rules ) {
-		$settings = Admin\Settings::get_settings();
-		$target   = isset( $settings['conversion_target'] ) ? $settings['conversion_target'] : 'original';
-
-		if ( 'original' === $target ) {
-			return $rules;
-		}
-
 		$new_rules = "\n# BEGIN FFmpeg Media Optimizer Next-Gen Formats\n";
 		$new_rules .= "<IfModule mod_rewrite.c>\n";
 		$new_rules .= "  RewriteEngine On\n";
 		$new_rules .= "  RewriteBase / \n";
-
-		// AVIF Rule
-		if ( 'avif' === $target || 'best' === $target ) {
-			$new_rules .= "  RewriteCond %{HTTP_ACCEPT} image/avif\n";
-			$new_rules .= "  RewriteCond %{DOCUMENT_ROOT}/wp-content/uploads/$1.avif -f\n";
-			$new_rules .= "  RewriteRule ^wp-content/uploads/(.+)\.(jpe?g|png|webp)$ wp-content/uploads/$1.avif [T=image/avif,L]\n";
-		}
-
-		// WebP Rule
-		if ( 'webp' === $target || 'best' === $target ) {
-			$new_rules .= "  RewriteCond %{HTTP_ACCEPT} image/webp\n";
-			$new_rules .= "  RewriteCond %{DOCUMENT_ROOT}/wp-content/uploads/$1.webp -f\n";
-			$new_rules .= "  RewriteRule ^wp-content/uploads/(.+)\.(jpe?g|png)$ wp-content/uploads/$1.webp [T=image/webp,L]\n";
-		}
-
+		$new_rules .= "  RewriteCond %{HTTP_ACCEPT} image/webp\n";
+		$new_rules .= "  RewriteCond %{DOCUMENT_ROOT}/wp-content/uploads/$1.webp -f\n";
+		$new_rules .= "  RewriteRule ^wp-content/uploads/(.+)\.(jpe?g|png)$ wp-content/uploads/$1.webp [T=image/webp,L]\n";
 		$new_rules .= "</IfModule>\n";
 		$new_rules .= "# END FFmpeg Media Optimizer Next-Gen Formats\n\n";
 
@@ -81,13 +62,6 @@ class Public_Handler {
 	 */
 	public function filter_url( $url ) {
 		if ( empty( $url ) ) {
-			return $url;
-		}
-
-		$settings = Admin\Settings::get_settings();
-		$target   = isset( $settings['conversion_target'] ) ? $settings['conversion_target'] : 'original';
-
-		if ( 'original' === $target ) {
 			return $url;
 		}
 
@@ -109,16 +83,8 @@ class Public_Handler {
 		$file_without_ext = pathinfo( $file_path, PATHINFO_DIRNAME ) . DIRECTORY_SEPARATOR . pathinfo( $file_path, PATHINFO_FILENAME );
 		$url_without_ext  = pathinfo( $url, PATHINFO_DIRNAME ) . '/' . pathinfo( $url, PATHINFO_FILENAME );
 
-		// AVIF Check
-		if ( ( 'avif' === $target || 'best' === $target ) && $this->browser_supports_avif() ) {
-			$avif_file = $file_without_ext . '.avif';
-			if ( file_exists( $avif_file ) ) {
-				return $url_without_ext . '.avif';
-			}
-		}
-
 		// WebP Check
-		if ( ( 'webp' === $target || 'best' === $target ) && $this->browser_supports_webp() ) {
+		if ( $this->browser_supports_webp() ) {
 			$webp_file = $file_without_ext . '.webp';
 			if ( file_exists( $webp_file ) ) {
 				return $url_without_ext . '.webp';
@@ -166,13 +132,15 @@ class Public_Handler {
 	 * Verify if user browser accepts WebP.
 	 */
 	private function browser_supports_webp() {
-		return ( isset( $_SERVER['HTTP_ACCEPT'] ) && str_contains( $_SERVER['HTTP_ACCEPT'], 'image/webp' ) );
+		$http_accept = isset( $_SERVER['HTTP_ACCEPT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) ) : '';
+		return str_contains( $http_accept, 'image/webp' );
 	}
 
 	/**
 	 * Verify if user browser accepts AVIF.
 	 */
 	private function browser_supports_avif() {
-		return ( isset( $_SERVER['HTTP_ACCEPT'] ) && str_contains( $_SERVER['HTTP_ACCEPT'], 'image/avif' ) );
+		$http_accept = isset( $_SERVER['HTTP_ACCEPT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) ) : '';
+		return str_contains( $http_accept, 'image/avif' );
 	}
 }

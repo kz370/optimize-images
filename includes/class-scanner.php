@@ -83,7 +83,10 @@ class Scanner {
 
 		$attachment_ids = $wpdb->get_col( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		if ( empty( $attachment_ids ) ) {
-			return 0;
+			return array(
+				'scanned' => 0,
+				'queried' => 0,
+			);
 		}
 
 		// Batch fetch existing statuses to avoid N+1 queries.
@@ -118,7 +121,10 @@ class Scanner {
 			}
 		}
 
-		return $scanned_count;
+		return array(
+			'scanned' => $scanned_count,
+			'queried' => count( $attachment_ids ),
+		);
 	}
 
 	/**

@@ -49,8 +49,8 @@ class Bulk_Page {
 	 */
 	public function add_menu_page() {
 		add_media_page(
-			esc_html__( 'FFmpeg Bulk Optimizer', 'ffmpeg-media-optimizer' ),
-			esc_html__( 'Bulk Optimization', 'ffmpeg-media-optimizer' ),
+			esc_html__( 'FFmpeg Bulk Optimizer', 'optimize-images' ),
+			esc_html__( 'Bulk Optimization', 'optimize-images' ),
 			'manage_options',
 			'ffmpeg-media-bulk',
 			array( $this, 'render_bulk_page' )
@@ -62,7 +62,7 @@ class Bulk_Page {
 	 */
 	public function render_bulk_page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'ffmpeg-media-optimizer' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'optimize-images' ) );
 		}
 
 		// Force re-detection of binaries when visiting Bulk page
@@ -78,19 +78,22 @@ class Bulk_Page {
 		check_ajax_referer( 'ffmpeg_media_bulk_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		$offset  = isset( $_POST['offset'] ) ? (int) $_POST['offset'] : 0;
 		$scanner = new Scanner();
 		$limit   = 500;
 
-		$scanned = $scanner->scan_batch( $offset, $limit );
+		$res = $scanner->scan_batch( $offset, $limit );
+
+		$scanned = is_array( $res ) ? $res['scanned'] : $res;
+		$queried = is_array( $res ) ? $res['queried'] : $res;
 
 		wp_send_json_success(
 			array(
 				'scanned' => $scanned,
-				'done'    => ( $scanned < $limit ),
+				'done'    => ( $queried < $limit ),
 				'offset'  => $offset + $limit,
 			)
 		);
@@ -103,7 +106,7 @@ class Bulk_Page {
 		check_ajax_referer( 'ffmpeg_media_bulk_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		$operation = isset( $_POST['operation'] ) ? sanitize_key( $_POST['operation'] ) : '';
@@ -131,11 +134,12 @@ class Bulk_Page {
 			case 'retry_failed':
 				global $wpdb;
 				$table = Database::get_images_table();
-				$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = %s WHERE status = %s", 'pending', 'failed' ) );
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->query( $wpdb->prepare( 'UPDATE %i SET status = %s WHERE status = %s', $table, 'pending', 'failed' ) );
 				$processor->start( $scope );
 				break;
 			default:
-				wp_send_json_error( array( 'error' => __( 'Invalid control operation.', 'ffmpeg-media-optimizer' ) ) );
+				wp_send_json_error( array( 'error' => __( 'Invalid control operation.', 'optimize-images' ) ) );
 		}
 
 		wp_send_json_success( array( 'state' => Background_Processor::get_queue_state() ) );
@@ -148,7 +152,7 @@ class Bulk_Page {
 		check_ajax_referer( 'ffmpeg_media_bulk_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		$scope = isset( $_POST['scope'] ) ? sanitize_key( $_POST['scope'] ) : 'all';
@@ -182,7 +186,7 @@ class Bulk_Page {
 		check_ajax_referer( 'ffmpeg_media_bulk_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		$scope = isset( $_POST['scope'] ) ? sanitize_key( $_POST['scope'] ) : 'all';
@@ -199,7 +203,7 @@ class Bulk_Page {
 
 		// Verify timezone window
 		if ( ! Background_Processor::is_within_allowed_window() ) {
-			wp_send_json_error( array( 'error' => __( 'Outside of allowed timezone window.', 'ffmpeg-media-optimizer' ) ) );
+			wp_send_json_error( array( 'error' => __( 'Outside of allowed timezone window.', 'optimize-images' ) ) );
 		}
 
 		// Fetch the NEXT 1 pending ID
@@ -253,7 +257,7 @@ class Bulk_Page {
 		check_ajax_referer( 'ffmpeg_media_bulk_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		$restorer = new Restorer();
@@ -265,7 +269,7 @@ class Bulk_Page {
 			array(
 				'message' => sprintf(
 					/* translators: %d: count of restored files */
-					__( 'Restore complete! Restored %d images to original files.', 'ffmpeg-media-optimizer' ),
+					__( 'Restore complete! Restored %d images to original files.', 'optimize-images' ),
 					$count
 				),
 			)
@@ -279,11 +283,11 @@ class Bulk_Page {
 		check_ajax_referer( 'ffmpeg_media_bulk_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		Logger::clear_logs();
-		wp_send_json_success( array( 'message' => __( 'Logs cleared.', 'ffmpeg-media-optimizer' ) ) );
+		wp_send_json_success( array( 'message' => __( 'Logs cleared.', 'optimize-images' ) ) );
 	}
 
 	/**
@@ -297,12 +301,14 @@ class Bulk_Page {
 		check_admin_referer( 'fmo_agency_report_nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Forbidden', 'ffmpeg-media-optimizer' ) );
+			wp_die( esc_html__( 'Forbidden', 'optimize-images' ) );
 		}
 
 		$format     = isset( $_GET['format'] ) && 'json' === $_GET['format'] ? 'json' : 'csv';
-		$start_date = isset( $_GET['start_date'] ) ? sanitize_text_field( $_GET['start_date'] ) : '';
-		$end_date   = isset( $_GET['end_date'] ) ? sanitize_text_field( $_GET['end_date'] ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$start_date = isset( $_GET['start_date'] ) ? sanitize_text_field( wp_unslash( $_GET['start_date'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$end_date   = isset( $_GET['end_date'] ) ? sanitize_text_field( wp_unslash( $_GET['end_date'] ) ) : '';
 
 		global $wpdb;
 		$runs_table = Database::get_runs_table();
@@ -317,12 +323,18 @@ class Bulk_Page {
 		}
 
 		// Retrieve historical run data
-		$results = $wpdb->get_results( "SELECT * FROM {$runs_table} WHERE {$where} ORDER BY id DESC" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$results = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE {$where} ORDER BY id DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$runs_table
+			)
+		);
 
 		// Compute metrics summary
 		$summary = Database::get_dashboard_stats( 'all' );
 
-		$filename = 'ffmpeg-media-optimizer-report-' . current_time( 'Y-md-His' ) . '.' . $format;
+		$filename = 'optimize-images-report-' . current_time( 'Y-md-His' ) . '.' . $format;
 
 		if ( 'json' === $format ) {
 			header( 'Content-Type: application/json; charset=utf-8' );
@@ -343,13 +355,13 @@ class Bulk_Page {
 			$output = fopen( 'php://output', 'w' );
 			
 			// Summary metrics block
-			fputcsv( $output, array( __( 'Summary Performance Metrics', 'ffmpeg-media-optimizer' ) ) );
-			fputcsv( $output, array( __( 'Total Images', 'ffmpeg-media-optimizer' ), __( 'Optimized Images', 'ffmpeg-media-optimizer' ), __( 'Failed Images', 'ffmpeg-media-optimizer' ), __( 'Total Savings (Bytes)', 'ffmpeg-media-optimizer' ), __( 'Duplicate Savings (Bytes)', 'ffmpeg-media-optimizer' ), __( 'Average Savings Percent', 'ffmpeg-media-optimizer' ) ) );
+			fputcsv( $output, array( __( 'Summary Performance Metrics', 'optimize-images' ) ) );
+			fputcsv( $output, array( __( 'Total Images', 'optimize-images' ), __( 'Optimized Images', 'optimize-images' ), __( 'Failed Images', 'optimize-images' ), __( 'Total Savings (Bytes)', 'optimize-images' ), __( 'Duplicate Savings (Bytes)', 'optimize-images' ), __( 'Average Savings Percent', 'optimize-images' ) ) );
 			fputcsv( $output, array( $summary['total'], $summary['optimized'], $summary['failed'], $summary['bytes_saved'], $summary['duplicate_saved'], $summary['average_savings'] . '%' ) );
 			fputcsv( $output, array() );
 
 			// Details list block
-			fputcsv( $output, array( __( 'Conversion Run Index', 'ffmpeg-media-optimizer' ), __( 'Attachment ID', 'ffmpeg-media-optimizer' ), __( 'Optimizer', 'ffmpeg-media-optimizer' ), __( 'Format', 'ffmpeg-media-optimizer' ), __( 'Quality Used', 'ffmpeg-media-optimizer' ), __( 'Saved Bytes', 'ffmpeg-media-optimizer' ), __( 'Saved Percent', 'ffmpeg-media-optimizer' ), __( 'Duration (s)', 'ffmpeg-media-optimizer' ), __( 'Completed Date', 'ffmpeg-media-optimizer' ) ) );
+			fputcsv( $output, array( __( 'Conversion Run Index', 'optimize-images' ), __( 'Attachment ID', 'optimize-images' ), __( 'Optimizer', 'optimize-images' ), __( 'Format', 'optimize-images' ), __( 'Quality Used', 'optimize-images' ), __( 'Saved Bytes', 'optimize-images' ), __( 'Saved Percent', 'optimize-images' ), __( 'Duration (s)', 'optimize-images' ), __( 'Completed Date', 'optimize-images' ) ) );
 
 			foreach ( $results as $run ) {
 				fputcsv(
@@ -368,6 +380,7 @@ class Bulk_Page {
 				);
 			}
 
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 			fclose( $output );
 			exit;
 		}

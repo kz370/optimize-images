@@ -102,7 +102,7 @@ jQuery(document).ready(function($) {
 		var statsTimer = null;
 		var activeChartTab = 'daily';
 		var chartData = { daily: [], monthly: [] };
-		var lastQueueState = { status: 'idle' };
+		var lastQueueState = null;
 		var isProcessingAjax = false;
 
 		// Initial load
@@ -296,19 +296,6 @@ jQuery(document).ready(function($) {
 						}
 					}
 
-					// Manage optimize and retry failed button states (Feature 14)
-					if (stats.pending > 0 && ('idle' === queue.status || 'stopped' === queue.status)) {
-						$('#btn-optimize').prop('disabled', false);
-					} else {
-						$('#btn-optimize').prop('disabled', true);
-					}
-
-					if (stats.failed > 0 && ('idle' === queue.status || 'stopped' === queue.status)) {
-						$('#btn-retry-failed').show();
-					} else {
-						$('#btn-retry-failed').hide();
-					}
-
 					// Update log console
 					$('#ffmpeg-logs-area').val(response.data.logs);
 
@@ -327,6 +314,19 @@ jQuery(document).ready(function($) {
 					// Ensure we don't resurrect a queue that was stopped/paused locally
 					if (lastQueueState && 'running' !== lastQueueState.status && 'running' === queue.status) {
 						queue.status = lastQueueState.status;
+					}
+
+					// Manage optimize and retry failed button states (Feature 14)
+					if (stats.pending > 0 && ('idle' === queue.status || 'stopped' === queue.status)) {
+						$('#btn-optimize').prop('disabled', false);
+					} else {
+						$('#btn-optimize').prop('disabled', true);
+					}
+
+					if (stats.failed > 0 && ('idle' === queue.status || 'stopped' === queue.status)) {
+						$('#btn-retry-failed').show();
+					} else {
+						$('#btn-retry-failed').hide();
 					}
 
 					lastQueueState = queue;

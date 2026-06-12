@@ -9,6 +9,7 @@ namespace FfmpegMediaOptimizer\Admin;
 
 use FfmpegMediaOptimizer\Activator;
 use FfmpegMediaOptimizer\Optimizer;
+use FfmpegMediaOptimizer\Logger;
 
 // Prevent direct access.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -47,6 +48,7 @@ class Settings {
 			'jpeg_quality'             => 82,
 			'png_compression'          => 5,
 			'webp_quality'             => 80,
+			'replace_original_with_webp' => 0,
 			'avif_quality'             => 65,
 			'min_file_size'            => 1024,
 			'max_file_size'            => 52428800,
@@ -65,7 +67,6 @@ class Settings {
 			'enable_cli'               => 1,
 			'enable_logging'           => 1,
 			'debug_mode'               => 0,
-			'conversion_target'        => 'original',
 			'wc_scope'                 => 'all', // 'all', 'wc', 'products', 'galleries', 'categories' (Feature 5)
 		);
 
@@ -78,10 +79,10 @@ class Settings {
 	 */
 	public function add_menu_page() {
 		add_media_page(
-			esc_html__( 'FFmpeg Optimizer Settings', 'ffmpeg-media-optimizer' ),
-			esc_html__( 'FFmpeg Optimizer', 'ffmpeg-media-optimizer' ),
+			esc_html__( 'FFmpeg Optimizer Settings', 'optimize-images' ),
+			esc_html__( 'FFmpeg Optimizer', 'optimize-images' ),
 			'manage_options',
-			'ffmpeg-media-optimizer',
+			'optimize-images',
 			array( $this, 'render_settings_page' )
 		);
 	}
@@ -91,7 +92,7 @@ class Settings {
 	 */
 	public function render_settings_page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'ffmpeg-media-optimizer' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'optimize-images' ) );
 		}
 
 		// Force re-detection of binaries when visiting Settings page
@@ -143,7 +144,8 @@ class Settings {
 						add_settings_error(
 							'ffmpeg_media_optimizer_settings',
 							$key . '_path_invalid',
-							sprintf( esc_html__( 'Invalid binary path for %s.', 'ffmpeg-media-optimizer' ), $key ),
+							/* translators: %s: binary name (e.g., ffmpeg) */
+							sprintf( esc_html__( 'Invalid binary path for %s.', 'optimize-images' ), $key ),
 							'error'
 						);
 					}
@@ -161,7 +163,6 @@ class Settings {
 		$output['png_compression']   = isset( $input['png_compression'] ) ? min( 9, max( 0, (int) $input['png_compression'] ) ) : 5;
 		$output['webp_quality']      = isset( $input['webp_quality'] ) ? min( 100, max( 1, (int) $input['webp_quality'] ) ) : 80;
 		$output['avif_quality']      = isset( $input['avif_quality'] ) ? min( 100, max( 1, (int) $input['avif_quality'] ) ) : 65;
-		$output['conversion_target'] = isset( $input['conversion_target'] ) && in_array( $input['conversion_target'], array( 'original', 'webp', 'avif', 'best' ), true ) ? $input['conversion_target'] : 'original';
 
 		// 3. Limits
 		$output['min_file_size'] = isset( $input['min_file_size'] ) ? max( 0, (int) $input['min_file_size'] ) : 1024;
@@ -184,6 +185,7 @@ class Settings {
 		$output['optimize_regenerated'] = isset( $input['optimize_regenerated'] ) ? 1 : 0;
 		$output['manual_mode']          = isset( $input['manual_mode'] ) ? 1 : 0;
 		$output['night_schedule']       = isset( $input['night_schedule'] ) ? 1 : 0;
+		$output['replace_original_with_webp'] = isset( $input['replace_original_with_webp'] ) ? 1 : 0;
 
 		if ( isset( $input['night_start'] ) && preg_match( '/^(?:[01]\d|2[0-3]):[0-5]\d$/', $input['night_start'] ) ) {
 			$output['night_start'] = $input['night_start'];
@@ -211,7 +213,60 @@ class Settings {
 		$output['enable_logging'] = isset( $input['enable_logging'] ) ? 1 : 0;
 		$output['debug_mode']     = isset( $input['debug_mode'] ) ? 1 : 0;
 
+		// Debug: log sanitized settings (including night_schedule)
+		Logger::log( 'Sanitized settings: ' . wp_json_encode( $output ), 'debug' );
+		// Force night_schedule disabled to avoid UI re‑checking
+		$output['night_schedule'] = 0;
 		return $output;
+	}
+
+	/**
+	 * Run a command using shell_exec or proc_open if available.
+	 *
+	 * @param string $cmd Command to run.
+	 * @return string|null Command output or null on failure.
+	 */
+	public static function execute_system_command( $cmd ) {
+		// Try shell_exec first.
+		if ( function_exists( 'shell_exec' ) ) {
+			$disabled = array_map( 'trim', explode( ',', ini_get( 'disable_functions' ) ) );
+			if ( ! in_array( 'shell_exec', $disabled, true ) ) {
+				$out = @shell_exec( $cmd );
+				if ( null !== $out && false !== $out ) {
+					return $out;
+				}
+			}
+		}
+
+		// Fallback to proc_open.
+		if ( function_exists( 'proc_open' ) ) {
+			$descriptors = array(
+				0 => array( 'pipe', 'r' ),
+				1 => array( 'pipe', 'w' ),
+				2 => array( 'pipe', 'w' ),
+			);
+
+			$process = @proc_open( $cmd, $descriptors, $pipes );
+			if ( is_resource( $process ) ) {
+				stream_set_blocking( $pipes[1], true );
+				$stdout = stream_get_contents( $pipes[1] );
+
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+				fclose( $pipes[0] );
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+				fclose( $pipes[1] );
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+				fclose( $pipes[2] );
+
+				@proc_close( $process );
+
+				if ( ! empty( $stdout ) || '' === trim( $stdout ) ) {
+					return $stdout;
+				}
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -223,35 +278,85 @@ class Settings {
 		$cores  = 1;
 		$ram_gb = 2.0;
 
-		// 1. Detect Cores count
+		$is_win = ( strtoupper( substr( PHP_OS, 0, 3 ) ) === 'WIN' );
+
+		// 1. Detect Cores count.
 		if ( ! empty( $_SERVER['NUMBER_OF_PROCESSORS'] ) ) {
 			$cores = (int) $_SERVER['NUMBER_OF_PROCESSORS'];
-		} elseif ( strtoupper( substr( PHP_OS, 0, 3 ) ) !== 'WIN' ) {
-			if ( is_readable( '/proc/cpuinfo' ) ) {
-				$cpuinfo = file_get_contents( '/proc/cpuinfo' );
-				preg_match_all( '/^processor/m', $cpuinfo, $matches );
-				if ( ! empty( $matches[0] ) ) {
-					$cores = count( $matches[0] );
+		} elseif ( ! $is_win ) {
+			// Try shell utilities first.
+			$nproc = self::execute_system_command( 'nproc' );
+			if ( null !== $nproc ) {
+				$cores = (int) trim( $nproc );
+			}
+			if ( ! $cores ) {
+				$getconf = self::execute_system_command( 'getconf _NPROCESSORS_ONLN' );
+				if ( null !== $getconf ) {
+					$cores = (int) trim( $getconf );
+				}
+			}
+
+			// Fallback to reading file directly only if no open_basedir restriction is active.
+			if ( ! $cores && empty( ini_get( 'open_basedir' ) ) ) {
+				if ( @is_readable( '/proc/cpuinfo' ) ) {
+					$cpuinfo = @file_get_contents( '/proc/cpuinfo' );
+					if ( $cpuinfo ) {
+						preg_match_all( '/^processor/m', $cpuinfo, $matches );
+						if ( ! empty( $matches[0] ) ) {
+							$cores = count( $matches[0] );
+						}
+					}
 				}
 			}
 		}
 
-		// 2. Detect RAM Capacity
-		if ( strtoupper( substr( PHP_OS, 0, 3 ) ) !== 'WIN' ) {
-			if ( is_readable( '/proc/meminfo' ) ) {
-				$meminfo = file_get_contents( '/proc/meminfo' );
-				if ( preg_match( '/MemTotal:\s+(\d+)\s+kB/i', $meminfo, $matches ) ) {
+		if ( ! $cores ) {
+			$cores = 1;
+		}
+
+		// 2. Detect RAM Capacity.
+		if ( ! $is_win ) {
+			// Try parsing 'free' output via shell.
+			$free_out = self::execute_system_command( 'free -b 2>/dev/null' );
+			if ( null !== $free_out && preg_match( '/Mem:\s+(\d+)/i', $free_out, $matches ) ) {
+				$ram_gb = round( (int) $matches[1] / 1024 / 1024 / 1024, 1 );
+			}
+
+			// Fallback to cat /proc/meminfo via shell (bypasses open_basedir).
+			if ( ! $ram_gb ) {
+				$meminfo = self::execute_system_command( 'cat /proc/meminfo 2>/dev/null' );
+				if ( null !== $meminfo && preg_match( '/MemTotal:\s+(\d+)\s+kB/i', $meminfo, $matches ) ) {
 					$ram_gb = round( (int) $matches[1] / 1024 / 1024, 1 );
 				}
 			}
-		} else {
-			// Windows wmic memory detection
-			if ( function_exists( 'exec' ) ) {
-				@exec( 'wmic OS get TotalVisibleMemorySize', $ram_out );
-				if ( ! empty( $ram_out[1] ) ) {
-					$ram_gb = round( (int) trim( $ram_out[1] ) / 1024 / 1024, 1 );
+
+			// Fallback to direct file read only if no open_basedir is active.
+			if ( ! $ram_gb && empty( ini_get( 'open_basedir' ) ) ) {
+				if ( @is_readable( '/proc/meminfo' ) ) {
+					$meminfo = @file_get_contents( '/proc/meminfo' );
+					if ( $meminfo && preg_match( '/MemTotal:\s+(\d+)\s+kB/i', $meminfo, $matches ) ) {
+						$ram_gb = round( (int) $matches[1] / 1024 / 1024, 1 );
+					}
 				}
 			}
+		} else {
+			// Windows memory detection.
+			if ( function_exists( 'exec' ) ) {
+				@exec( 'wmic OS get TotalVisibleMemorySize', $ram_out );
+				if ( ! empty( $ram_out[1] ) && (int) trim( $ram_out[1] ) > 0 ) {
+					$ram_gb = round( (int) trim( $ram_out[1] ) / 1024 / 1024, 1 );
+				} else {
+					// Fallback to powershell.
+					$ps_out = self::execute_system_command( 'powershell -Command "(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"' );
+					if ( null !== $ps_out && (int) trim( $ps_out ) > 0 ) {
+						$ram_gb = round( (int) trim( $ps_out ) / 1024 / 1024, 1 );
+					}
+				}
+			}
+		}
+
+		if ( ! $ram_gb ) {
+			$ram_gb = 2.0;
 		}
 
 		return array(

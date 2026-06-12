@@ -68,22 +68,22 @@ class Admin {
 		}
 
 		wp_enqueue_style(
-			'ffmpeg-media-optimizer-admin',
+			'optimize-images-admin',
 			FFMPEG_MEDIA_OPTIMIZER_URL . 'assets/admin.css',
 			array(),
-			FFMPEG_MEDIA_OPTIMIZER_VERSION
+			file_exists( FFMPEG_MEDIA_OPTIMIZER_PATH . 'assets/admin.css' ) ? filemtime( FFMPEG_MEDIA_OPTIMIZER_PATH . 'assets/admin.css' ) : FFMPEG_MEDIA_OPTIMIZER_VERSION
 		);
 
 		wp_enqueue_script(
-			'ffmpeg-media-optimizer-admin',
+			'optimize-images-admin',
 			FFMPEG_MEDIA_OPTIMIZER_URL . 'assets/admin.js',
 			array( 'jquery' ),
-			FFMPEG_MEDIA_OPTIMIZER_VERSION,
+			file_exists( FFMPEG_MEDIA_OPTIMIZER_PATH . 'assets/admin.js' ) ? filemtime( FFMPEG_MEDIA_OPTIMIZER_PATH . 'assets/admin.js' ) : FFMPEG_MEDIA_OPTIMIZER_VERSION,
 			true
 		);
 
 		wp_localize_script(
-			'ffmpeg-media-optimizer-admin',
+			'optimize-images-admin',
 			'ffmpegMediaSettings',
 			array(
 				'ajaxurl'  => admin_url( 'admin-ajax.php' ),
@@ -93,9 +93,9 @@ class Admin {
 					'history'  => wp_create_nonce( 'ffmpeg_media_history_nonce' ),
 				),
 				'messages' => array(
-					'optimizing' => __( 'Optimizing...', 'ffmpeg-media-optimizer' ),
-					'restoring'  => __( 'Restoring...', 'ffmpeg-media-optimizer' ),
-					'error'      => __( 'An error occurred.', 'ffmpeg-media-optimizer' ),
+					'optimizing' => __( 'Optimizing...', 'optimize-images' ),
+					'restoring'  => __( 'Restoring...', 'optimize-images' ),
+					'error'      => __( 'An error occurred.', 'optimize-images' ),
 				),
 			)
 		);
@@ -108,11 +108,11 @@ class Admin {
 	 * @return array Modified columns.
 	 */
 	public function add_media_columns( $posts_columns ) {
-		$posts_columns['fmo_status']    = __( 'Optimization Status', 'ffmpeg-media-optimizer' );
-		$posts_columns['fmo_savings']   = __( 'Savings', 'ffmpeg-media-optimizer' );
-		$posts_columns['fmo_optimizer'] = __( 'Optimizer Used', 'ffmpeg-media-optimizer' );
-		$posts_columns['fmo_last']      = __( 'Last Optimized', 'ffmpeg-media-optimizer' );
-		$posts_columns['fmo_runs']      = __( 'Runs', 'ffmpeg-media-optimizer' );
+		$posts_columns['fmo_status']    = __( 'Optimization Status', 'optimize-images' );
+		$posts_columns['fmo_savings']   = __( 'Savings', 'optimize-images' );
+		$posts_columns['fmo_optimizer'] = __( 'Optimizer Used', 'optimize-images' );
+		$posts_columns['fmo_last']      = __( 'Last Optimized', 'optimize-images' );
+		$posts_columns['fmo_runs']      = __( 'Runs', 'optimize-images' );
 		return $posts_columns;
 	}
 
@@ -128,7 +128,7 @@ class Admin {
 		switch ( $column_name ) {
 			case 'fmo_status':
 				if ( ! $record ) {
-					echo '<span class="ffmpeg-status status-untracked">' . esc_html__( 'Not Scanned', 'ffmpeg-media-optimizer' ) . '</span>';
+					echo '<span class="ffmpeg-status status-untracked">' . esc_html__( 'Not Scanned', 'optimize-images' ) . '</span>';
 				} else {
 					$status = $record->status;
 					printf(
@@ -147,7 +147,7 @@ class Admin {
 						'<strong>%1$s</strong><br/><small>%2$s%% %3$s</small>',
 						esc_html( size_format( $saved ) ),
 						esc_html( $percent ),
-						esc_html__( 'saved', 'ffmpeg-media-optimizer' )
+						esc_html__( 'saved', 'optimize-images' )
 					);
 				} else {
 					echo '-';
@@ -210,7 +210,7 @@ class Admin {
 			$actions['fmo_optimize'] = sprintf(
 				'<a href="#" class="ffmpeg-action-optimize" data-id="%d">%s</a>',
 				$post->ID,
-				__( 'Optimize', 'ffmpeg-media-optimizer' )
+				__( 'Optimize', 'optimize-images' )
 			);
 		}
 
@@ -219,7 +219,7 @@ class Admin {
 			$actions['fmo_restore'] = sprintf(
 				'<a href="#" class="ffmpeg-action-restore" data-id="%d">%s</a>',
 				$post->ID,
-				__( 'Restore Original', 'ffmpeg-media-optimizer' )
+				__( 'Restore Original', 'optimize-images' )
 			);
 		}
 
@@ -228,7 +228,7 @@ class Admin {
 			$actions['fmo_history'] = sprintf(
 				'<a href="#" class="ffmpeg-action-history" data-id="%d">%s</a>',
 				$post->ID,
-				__( 'History', 'ffmpeg-media-optimizer' )
+				__( 'History', 'optimize-images' )
 			);
 
 			$export_url = wp_nonce_url(
@@ -238,7 +238,7 @@ class Admin {
 			$actions['fmo_export'] = sprintf(
 				'<a href="%s" class="ffmpeg-action-export">%s</a>',
 				esc_url( $export_url ),
-				__( 'Export History', 'ffmpeg-media-optimizer' )
+				__( 'Export History', 'optimize-images' )
 			);
 		}
 
@@ -249,8 +249,8 @@ class Admin {
 	 * Register bulk actions (Feature 13).
 	 */
 	public function register_bulk_actions( $bulk_actions ) {
-		$bulk_actions['fmo_bulk_optimize'] = __( 'FMO Optimize', 'ffmpeg-media-optimizer' );
-		$bulk_actions['fmo_bulk_restore']  = __( 'FMO Restore Original', 'ffmpeg-media-optimizer' );
+		$bulk_actions['fmo_bulk_optimize'] = __( 'FMO Optimize', 'optimize-images' );
+		$bulk_actions['fmo_bulk_restore']  = __( 'FMO Restore Original', 'optimize-images' );
 		return $bulk_actions;
 	}
 
@@ -292,19 +292,25 @@ class Admin {
 	 * Bulk actions admin notifications.
 	 */
 	public function bulk_action_notices() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! empty( $_GET['fmo_bulk_opt_queued'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$count = (int) $_GET['fmo_bulk_opt_queued'];
 			printf(
 				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-				esc_html( sprintf( _n( 'Queued %d image for background optimization.', 'Queued %d images for background optimization.', $count, 'ffmpeg-media-optimizer' ), $count ) )
+				/* translators: %d: number of images queued */
+				esc_html( sprintf( _n( 'Queued %d image for background optimization.', 'Queued %d images for background optimization.', $count, 'optimize-images' ), $count ) )
 			);
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! empty( $_GET['fmo_bulk_restored'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$count = (int) $_GET['fmo_bulk_restored'];
 			printf(
 				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-				esc_html( sprintf( _n( 'Restored %d image to its original file.', 'Restored %d images to their original files.', $count, 'ffmpeg-media-optimizer' ), $count ) )
+				/* translators: %d: number of images restored */
+				esc_html( sprintf( _n( 'Restored %d image to its original file.', 'Restored %d images to their original files.', $count, 'optimize-images' ), $count ) )
 			);
 		}
 	}
@@ -316,12 +322,12 @@ class Admin {
 		check_ajax_referer( 'ffmpeg_media_optimize_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		$id = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 		if ( ! $id ) {
-			wp_send_json_error( array( 'error' => __( 'Invalid attachment ID.', 'ffmpeg-media-optimizer' ) ) );
+			wp_send_json_error( array( 'error' => __( 'Invalid attachment ID.', 'optimize-images' ) ) );
 		}
 
 		$scanner = new Scanner();
@@ -372,12 +378,12 @@ class Admin {
 		check_ajax_referer( 'ffmpeg_media_restore_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		$id = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 		if ( ! $id ) {
-			wp_send_json_error( array( 'error' => __( 'Invalid attachment ID.', 'ffmpeg-media-optimizer' ) ) );
+			wp_send_json_error( array( 'error' => __( 'Invalid attachment ID.', 'optimize-images' ) ) );
 		}
 
 		$restorer = new Restorer();
@@ -425,17 +431,17 @@ class Admin {
 		check_ajax_referer( 'ffmpeg_media_history_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'error' => __( 'Forbidden', 'ffmpeg-media-optimizer' ) ), 403 );
+			wp_send_json_error( array( 'error' => __( 'Forbidden', 'optimize-images' ) ), 403 );
 		}
 
 		$id = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 		if ( ! $id ) {
-			wp_send_json_error( array( 'error' => __( 'Invalid attachment ID.', 'ffmpeg-media-optimizer' ) ) );
+			wp_send_json_error( array( 'error' => __( 'Invalid attachment ID.', 'optimize-images' ) ) );
 		}
 
 		$runs = Database::get_runs( $id );
 		if ( empty( $runs ) ) {
-			wp_send_json_success( array( 'html' => '<p>' . esc_html__( 'No optimization history found.', 'ffmpeg-media-optimizer' ) . '</p>' ) );
+			wp_send_json_success( array( 'html' => '<p>' . esc_html__( 'No optimization history found.', 'optimize-images' ) . '</p>' ) );
 		}
 
 		ob_start();
@@ -443,13 +449,13 @@ class Admin {
 		<table class="wp-list-table widefat fixed striped">
 			<thead>
 				<tr>
-					<th><?php esc_html_e( 'Index', 'ffmpeg-media-optimizer' ); ?></th>
-					<th><?php esc_html_e( 'Timestamp', 'ffmpeg-media-optimizer' ); ?></th>
-					<th><?php esc_html_e( 'Optimizer', 'ffmpeg-media-optimizer' ); ?></th>
-					<th><?php esc_html_e( 'Target Quality', 'ffmpeg-media-optimizer' ); ?></th>
-					<th><?php esc_html_e( 'Saved Space', 'ffmpeg-media-optimizer' ); ?></th>
-					<th><?php esc_html_e( 'Duration', 'ffmpeg-media-optimizer' ); ?></th>
-					<th><?php esc_html_e( 'Status', 'ffmpeg-media-optimizer' ); ?></th>
+					<th><?php esc_html_e( 'Index', 'optimize-images' ); ?></th>
+					<th><?php esc_html_e( 'Timestamp', 'optimize-images' ); ?></th>
+					<th><?php esc_html_e( 'Optimizer', 'optimize-images' ); ?></th>
+					<th><?php esc_html_e( 'Target Quality', 'optimize-images' ); ?></th>
+					<th><?php esc_html_e( 'Saved Space', 'optimize-images' ); ?></th>
+					<th><?php esc_html_e( 'Duration', 'optimize-images' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'optimize-images' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -466,7 +472,7 @@ class Admin {
 							<?php
 							if ( 'success' === $run->status ) {
 								/* translators: 1: bytes saved, 2: percent saved */
-								echo esc_html( sprintf( __( '%1$s (%2$s%%)', 'ffmpeg-media-optimizer' ), size_format( $run->saved_bytes ), $run->saved_percent ) );
+								echo esc_html( sprintf( __( '%1$s (%2$s%%)', 'optimize-images' ), size_format( $run->saved_bytes ), $run->saved_percent ) );
 							} else {
 								echo '-';
 							}
@@ -475,9 +481,9 @@ class Admin {
 						<td><?php echo (int) $run->duration; ?>s</td>
 						<td>
 							<?php if ( 'success' === $run->status ) : ?>
-								<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> <?php esc_html_e( 'Success', 'ffmpeg-media-optimizer' ); ?>
+								<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> <?php esc_html_e( 'Success', 'optimize-images' ); ?>
 							<?php else : ?>
-								<span class="dashicons dashicons-warning" style="color: #dc3232;" title="<?php echo esc_attr( $run->error_message ); ?>"></span> <?php esc_html_e( 'Failed', 'ffmpeg-media-optimizer' ); ?>
+								<span class="dashicons dashicons-warning" style="color: #dc3232;" title="<?php echo esc_attr( $run->error_message ); ?>"></span> <?php esc_html_e( 'Failed', 'optimize-images' ); ?>
 							<?php endif; ?>
 						</td>
 					</tr>
@@ -500,17 +506,17 @@ class Admin {
 		check_admin_referer( 'fmo_export_history_nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Forbidden', 'ffmpeg-media-optimizer' ) );
+			wp_die( esc_html__( 'Forbidden', 'optimize-images' ) );
 		}
 
 		$id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
 		if ( ! $id ) {
-			wp_die( esc_html__( 'Invalid attachment ID.', 'ffmpeg-media-optimizer' ) );
+			wp_die( esc_html__( 'Invalid attachment ID.', 'optimize-images' ) );
 		}
 
 		$runs = Database::get_runs( $id );
 		if ( empty( $runs ) ) {
-			wp_die( esc_html__( 'No optimization history available for this attachment.', 'ffmpeg-media-optimizer' ) );
+			wp_die( esc_html__( 'No optimization history available for this attachment.', 'optimize-images' ) );
 		}
 
 		$filename = 'image-' . $id . '-optimization-history-' . current_time( 'Y-md-His' ) . '.csv';
@@ -542,6 +548,7 @@ class Admin {
 			);
 		}
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		fclose( $output );
 		exit;
 	}

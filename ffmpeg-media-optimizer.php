@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       FFmpeg Media Optimizer
- * Plugin URI:        https://wordpress.org/plugins/ffmpeg-media-optimizer/
+ * Plugin URI:        https://wordpress.org/plugins/optimize-images/
  * Description:       A self-hosted image optimization plugin that optimizes WordPress media library images locally using FFmpeg.
  * Version:           1.0.0
  * Requires at least: 6.5
@@ -9,7 +9,7 @@
  * Author:            WordPress Plugin Engineer
  * License:           GPLv2 or later
  * License URI:      https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       ffmpeg-media-optimizer
+ * Text Domain:       optimize-images
  * Domain Path:       /languages
  */
 
@@ -70,26 +70,26 @@ spl_autoload_register( function ( $class ) {
 /**
  * Activation Hook.
  */
-function activate_ffmpeg_media_optimizer() {
+function optimize_images_activate() {
 	// Let Activator class handle the activation process.
 	\FfmpegMediaOptimizer\Activator::activate();
 }
-register_activation_hook( __FILE__, 'activate_ffmpeg_media_optimizer' );
+register_activation_hook( __FILE__, 'optimize_images_activate' );
 
 /**
  * Deactivation Hook.
  */
-function deactivate_ffmpeg_media_optimizer() {
+function optimize_images_deactivate() {
 	// Let Deactivator class handle the deactivation process.
 	\FfmpegMediaOptimizer\Deactivator::deactivate();
 }
-register_deactivation_hook( __FILE__, 'deactivate_ffmpeg_media_optimizer' );
+register_deactivation_hook( __FILE__, 'optimize_images_deactivate' );
 
 /**
  * Initialize the plugin.
  */
-function run_ffmpeg_media_optimizer() {
+function optimize_images_run() {
 	$plugin = new \FfmpegMediaOptimizer\Plugin();
 	$plugin->run();
 }
-run_ffmpeg_media_optimizer();
+optimize_images_run();

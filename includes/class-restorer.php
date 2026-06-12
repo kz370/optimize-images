@@ -30,7 +30,7 @@ class Restorer {
 		if ( ! $file_path ) {
 			return array(
 				'success' => false,
-				'error'   => __( 'Attachment file path not found.', 'ffmpeg-media-optimizer' ),
+				'error'   => __( 'Attachment file path not found.', 'optimize-images' ),
 			);
 		}
 
@@ -39,12 +39,12 @@ class Restorer {
 
 		// Verify backup file exists
 		$relative = str_replace( $basedir, '', $file_path );
-		$backup   = $basedir . '/.ffmpeg-media-optimizer-backups' . $relative;
+		$backup   = $basedir . '/.optimize-images-backups' . $relative;
 
 		if ( ! file_exists( $backup ) ) {
 			return array(
 				'success' => false,
-				'error'   => __( 'Original backup file does not exist.', 'ffmpeg-media-optimizer' ),
+				'error'   => __( 'Original backup file does not exist.', 'optimize-images' ),
 			);
 		}
 
@@ -65,7 +65,7 @@ class Restorer {
 				if ( ! empty( $size_info['file'] ) ) {
 					$thumb_target = $dirname . DIRECTORY_SEPARATOR . $size_info['file'];
 					$thumb_relative = str_replace( $basedir, '', $thumb_target );
-					$thumb_backup = $basedir . '/.ffmpeg-media-optimizer-backups' . $thumb_relative;
+					$thumb_backup = $basedir . '/.optimize-images-backups' . $thumb_relative;
 
 					if ( file_exists( $thumb_backup ) ) {
 						$files_to_restore[ $size ] = array(
@@ -82,7 +82,7 @@ class Restorer {
 			// Copy backup back over the optimized file
 			if ( copy( $paths['backup'], $paths['target'] ) ) {
 				// Remove the backup file to clean up storage
-				unlink( $paths['backup'] );
+				wp_delete_file( $paths['backup'] );
 				$restored_count++;
 			}
 
@@ -92,10 +92,10 @@ class Restorer {
 			$avif_version       = $target_without_ext . '.avif';
 
 			if ( file_exists( $webp_version ) ) {
-				unlink( $webp_version );
+				wp_delete_file( $webp_version );
 			}
 			if ( file_exists( $avif_version ) ) {
-				unlink( $avif_version );
+				wp_delete_file( $avif_version );
 			}
 		}
 
@@ -118,7 +118,7 @@ class Restorer {
 
 		return array(
 			'success' => false,
-			'error'   => __( 'Failed to restore original files.', 'ffmpeg-media-optimizer' ),
+			'error'   => __( 'Failed to restore original files.', 'optimize-images' ),
 		);
 	}
 

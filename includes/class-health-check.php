@@ -42,8 +42,8 @@ class Health_Check {
 		if ( empty( $binaries['ffmpeg'] ) ) {
 			$issues['ffmpeg_missing'] = array(
 				'status'  => 'critical',
-				'message' => __( 'FFmpeg binary is missing or not executable.', 'ffmpeg-media-optimizer' ),
-				'fix'     => __( 'Install FFmpeg on your server via package manager (e.g. apt-get install ffmpeg) or set its custom absolute path in Settings.', 'ffmpeg-media-optimizer' ),
+				'message' => __( 'FFmpeg binary is missing or not executable.', 'optimize-images' ),
+				'fix'     => __( 'Install FFmpeg on your server via package manager (e.g. apt-get install ffmpeg) or set its custom absolute path in Settings.', 'optimize-images' ),
 			);
 		} else {
 			// check version
@@ -51,8 +51,18 @@ class Health_Check {
 			if ( self::is_ffmpeg_version_outdated( $v ) ) {
 				$issues['ffmpeg_outdated'] = array(
 					'status'  => 'warning',
-					'message' => sprintf( __( 'FFmpeg version (%s) is outdated.', 'ffmpeg-media-optimizer' ), $v ),
-					'fix'     => __( 'Upgrade FFmpeg to version 4.0.0 or higher to ensure compatibility with modern filters.', 'ffmpeg-media-optimizer' ),
+					/* translators: %s: FFmpeg version number */
+					'message' => sprintf( __( 'FFmpeg version (%s) is outdated.', 'optimize-images' ), $v ),
+					'fix'     => __( 'Upgrade FFmpeg to version 4.0.0 or higher to ensure compatibility with modern filters.', 'optimize-images' ),
+				);
+			}
+
+			// check WebP support (mandatory)
+			if ( empty( $binaries['ffmpeg']['has_webp'] ) ) {
+				$issues['ffmpeg_webp_unsupported'] = array(
+					'status'  => 'warning',
+					'message' => __( 'FFmpeg does not support WebP encoding (libwebp encoder is missing).', 'optimize-images' ),
+					'fix'     => __( 'Install an FFmpeg build that supports WebP encoding (libwebp) to allow next-gen WebP image generation.', 'optimize-images' ),
 				);
 			}
 		}
@@ -60,24 +70,25 @@ class Health_Check {
 		// 2. Binary optimizers missing checks (Removed - relying only on FFmpeg)
 
 
-		// 3. Upload directory permissions
 		$upload_dir = wp_upload_dir();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
 		if ( empty( $upload_dir['basedir'] ) || ! is_writable( $upload_dir['basedir'] ) ) {
 			$issues['uploads_permissions'] = array(
 				'status'  => 'critical',
-				'message' => __( 'Uploads directory is not writable.', 'ffmpeg-media-optimizer' ),
-				'fix'     => __( 'Adjust directory permissions (CHMOD 755 or 775) on wp-content/uploads/ to allow writing optimized files.', 'ffmpeg-media-optimizer' ),
+				'message' => __( 'Uploads directory is not writable.', 'optimize-images' ),
+				'fix'     => __( 'Adjust directory permissions (CHMOD 755 or 775) on wp-content/uploads/ to allow writing optimized files.', 'optimize-images' ),
 			);
 		}
 
 		// 4. Backup directory permissions
 		if ( ! empty( $upload_dir['basedir'] ) ) {
-			$backups_dir = $upload_dir['basedir'] . '/.ffmpeg-media-optimizer-backups';
+			$backups_dir = $upload_dir['basedir'] . '/.optimize-images-backups';
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
 			if ( is_dir( $backups_dir ) && ! is_writable( $backups_dir ) ) {
 				$issues['backups_permissions'] = array(
 					'status'  => 'critical',
-					'message' => __( 'Backups directory is not writable.', 'ffmpeg-media-optimizer' ),
-					'fix'     => __( 'Adjust directory permissions on wp-content/uploads/.ffmpeg-media-optimizer-backups/ to restore images.', 'ffmpeg-media-optimizer' ),
+					'message' => __( 'Backups directory is not writable.', 'optimize-images' ),
+					'fix'     => __( 'Adjust directory permissions on wp-content/uploads/.optimize-images-backups/ to restore images.', 'optimize-images' ),
 				);
 			}
 		}
@@ -88,8 +99,8 @@ class Health_Check {
 			if ( $free_space !== false && $free_space < 52428800 ) { // Less than 50MB
 				$issues['low_disk'] = array(
 					'status'  => 'critical',
-					'message' => __( 'Disk space is critically low (under 50MB free).', 'ffmpeg-media-optimizer' ),
-					'fix'     => __( 'Free up server storage or upgrade disk quota. Background processing is suspended.', 'ffmpeg-media-optimizer' ),
+					'message' => __( 'Disk space is critically low (under 50MB free).', 'optimize-images' ),
+					'fix'     => __( 'Free up server storage or upgrade disk quota. Background processing is suspended.', 'optimize-images' ),
 				);
 			}
 		}
@@ -98,8 +109,8 @@ class Health_Check {
 		if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON && ! class_exists( 'ActionScheduler' ) ) {
 			$issues['cron_disabled'] = array(
 				'status'  => 'warning',
-				'message' => __( 'WP-Cron is disabled and Action Scheduler is unavailable.', 'ffmpeg-media-optimizer' ),
-				'fix'     => __( 'Enable WP-Cron in wp-config.php or run background cron schedules using server system crontabs.', 'ffmpeg-media-optimizer' ),
+				'message' => __( 'WP-Cron is disabled and Action Scheduler is unavailable.', 'optimize-images' ),
+				'fix'     => __( 'Enable WP-Cron in wp-config.php or run background cron schedules using server system crontabs.', 'optimize-images' ),
 			);
 		}
 
@@ -107,8 +118,8 @@ class Health_Check {
 		if ( ! class_exists( 'ActionScheduler' ) ) {
 			$issues['action_scheduler'] = array(
 				'status'  => 'warning',
-				'message' => __( 'Action Scheduler is not installed.', 'ffmpeg-media-optimizer' ),
-				'fix'     => __( 'Install WooCommerce or Action Scheduler plugin to enable reliable background batch processing.', 'ffmpeg-media-optimizer' ),
+				'message' => __( 'Action Scheduler is not installed.', 'optimize-images' ),
+				'fix'     => __( 'Install WooCommerce or Action Scheduler plugin to enable reliable background batch processing.', 'optimize-images' ),
 			);
 		}
 
@@ -119,8 +130,9 @@ class Health_Check {
 			if ( $bytes > 0 && $bytes < 134217728 ) { // Less than 128M
 				$issues['low_memory'] = array(
 					'status'  => 'warning',
-					'message' => sprintf( __( 'PHP memory limit is low (%s).', 'ffmpeg-media-optimizer' ), $mem_limit ),
-					'fix'     => __( 'Increase memory_limit inside php.ini to 256M or higher to prevent crashes.', 'ffmpeg-media-optimizer' ),
+					/* translators: %s: PHP memory limit value (e.g. 128M) */
+					'message' => sprintf( __( 'PHP memory limit is low (%s).', 'optimize-images' ), $mem_limit ),
+					'fix'     => __( 'Increase memory_limit inside php.ini to 256M or higher to prevent crashes.', 'optimize-images' ),
 				);
 			}
 		}
@@ -170,9 +182,9 @@ class Health_Check {
 				'<div class="%1$s" data-notice-key="%2$s"><p><strong>%3$s:</strong> %4$s <br/><em>%5$s:</em> %6$s</p></div>',
 				esc_attr( $class ),
 				esc_attr( $key ),
-				esc_html__( 'FFmpeg Media Optimizer', 'ffmpeg-media-optimizer' ),
+				esc_html__( 'FFmpeg Media Optimizer', 'optimize-images' ),
 				esc_html( $issue['message'] ),
-				esc_html__( 'Suggested Fix', 'ffmpeg-media-optimizer' ),
+				esc_html__( 'Suggested Fix', 'optimize-images' ),
 				esc_html( $issue['fix'] )
 			);
 		}
