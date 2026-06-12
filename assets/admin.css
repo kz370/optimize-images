@@ -1,0 +1,194 @@
+/**
+ * Stylesheet for FFmpeg Media Optimizer Admin interface.
+ */
+
+/* Grid and Cards Layout */
+.ffmpeg-dashboard-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 20px;
+	margin-top: 20px;
+	margin-bottom: 30px;
+}
+
+.ffmpeg-card {
+	flex: 1 1 200px;
+	background: #fff;
+	border: 1px solid #e5e5e5;
+	border-radius: 6px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+	transition: all 0.25s ease;
+	position: relative;
+	overflow: hidden;
+}
+
+.ffmpeg-card:hover {
+	box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+	transform: translateY(-2px);
+}
+
+.ffmpeg-card::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 5px;
+}
+
+.card-total::before { background-color: #2271b1; }
+.card-optimized::before { background-color: #46b450; }
+.card-pending::before { background-color: #dba617; }
+.card-failed::before { background-color: #d63638; }
+.card-savings::before { background-color: #9b51e0; }
+.card-avg::before { background-color: #0085a1; }
+
+.card-inner {
+	padding: 20px;
+}
+
+.ffmpeg-card h3 {
+	margin: 0 0 10px 0;
+	font-size: 14px;
+	color: #646970;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.ffmpeg-card .stat-number {
+	display: block;
+	font-size: 32px;
+	font-weight: 700;
+	color: #1d2327;
+	line-height: 1.2;
+	margin-bottom: 5px;
+}
+
+.ffmpeg-card .stat-desc {
+	margin: 0;
+	font-size: 12px;
+	color: #8c8f94;
+}
+
+/* Control Panel */
+.ffmpeg-control-panel {
+	background: #fff;
+	border: 1px solid #e5e5e5;
+	border-radius: 6px;
+	padding: 25px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.ffmpeg-control-panel h2 {
+	margin-top: 0;
+	margin-bottom: 20px;
+}
+
+.ffmpeg-buttons-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 15px;
+}
+
+.ffmpeg-buttons-row .button-hero {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 46px;
+	padding: 0 20px;
+	font-size: 14px;
+}
+
+.ffmpeg-buttons-row .button-hero .dashicons {
+	margin-right: 6px;
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+}
+
+/* Progress bar */
+.ffmpeg-progress-wrapper {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 15px;
+}
+
+.ffmpeg-progress-label {
+	display: flex;
+	justify-content: space-between;
+	font-weight: 600;
+	margin-bottom: 8px;
+	color: #2c3338;
+}
+
+.ffmpeg-progress-bar-container {
+	background: #dcdcde;
+	border-radius: 10px;
+	height: 12px;
+	overflow: hidden;
+	position: relative;
+	width: 100%;
+}
+
+.ffmpeg-progress-bar-fill {
+	background: #2271b1;
+	height: 100%;
+	width: 0%;
+	transition: width 0.4s ease;
+}
+
+/* Media column statuses badges */
+.ffmpeg-status {
+	display: inline-block;
+	font-weight: 600;
+	font-size: 11px;
+	padding: 3px 8px;
+	border-radius: 12px;
+	text-transform: uppercase;
+}
+
+.status-untracked { background-color: #f0f0f1; color: #50575e; }
+.status-optimized { background-color: #dcfce7; color: #166534; }
+.status-pending { background-color: #fef3c7; color: #92400e; }
+.status-failed { background-color: #fee2e2; color: #991b1b; }
+.status-restored { background-color: #dbeafe; color: #1e40af; }
+
+/* Custom log console */
+#ffmpeg-logs-area {
+	border: 1px solid #222;
+	box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Tab contents styling for settings page */
+.ffmpeg-settings-wrap .tab-content {
+	background: #fff;
+	border: 1px solid #e5e5e5;
+	border-top: none;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+.ffmpeg-settings-wrap .form-table th {
+	width: 250px;
+}
+
+/* Charts Panel Navigation */
+.fmo-chart-tab.active {
+	background: #2271b1 !important;
+	color: #fff !important;
+	border-color: #2271b1 !important;
+}
+
+/* Secondary dashboard widgets adjustments */
+.fmo-dashboard-box {
+	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.fmo-dashboard-box h2 {
+	font-size: 16px;
+	font-weight: 600;
+	color: #1d2327;
+	margin-bottom: 15px;
+}
